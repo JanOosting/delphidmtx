@@ -287,7 +287,8 @@ begin
     bm.Width:=bitmap.Width;
     bm.Height:=bitmap.Height;
     bm.Canvas.Draw(0,0,bitmap);
-    //result:=dmtxImageMalloc(bm.Width,bm.Height);
+    destination:=GetMemory(bm.Width*bm.Height*SizeOf(TRGBTriple));
+    result:=dmtxImageCreate(destination, bm.width, bm.height, DmtxPack24bppRGB);
 
     rowsize:=result.width*SizeOf(TRGBTriple);
 
@@ -342,35 +343,26 @@ end;*)
 
 procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings;options:DatamatrixDecodeOptions);overload;
 var
-  decode:DmtxDecode;
+  decode:pDmtxDecode;
   image:PDmtxImage;
   region: DmtxRegion;
   p0,p1: DmtxPixelLoc;
   _message:pDmtxMessage;
 
 begin
-(*  codes.Clear;
+  codes.Clear;
   image:=DIBtoImage(bitmap);
+  dmtxImageSetProp(image, DmtxPropImageFlip, Integer(DmtxFlipNone));
+  decode := dmtxDecodeCreate(image, 1);
+
+
+
+
   try
-    if image.pageCount<1 then
-      raise EDataMatrixException.Create('Error loading image');
-    SetScanRegion(p0,p1,options,image);
-    decode:=dmtxDecodeStructInit(image,p0,p1,options.scanGap);
-    try
-      region:=dmtxDecodeFindNextRegion(@decode);
-      while region.found<> DMTX_REGION_EOF do
-      begin
-        _message:=dmtxDecodeMatrixRegion(@decode,@region,options.fix_errors);
-        DecodeOutput(options,image,@region,_message,0,codes);
-        dmtxMessageFree(@_message);
-        break; // for now stop after first code
-      end;
-    finally
-      dmtxDecodeStructDeInit(@decode);
-    end;
   finally
-    dmtxImageFree(@image);
-  end;*)
+    FreeMemory(image.pxl);
+    dmtxImageDestroy(@image);
+  end;
 end;
 
 end.

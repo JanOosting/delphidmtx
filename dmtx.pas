@@ -218,7 +218,7 @@ DmtxProperty=(
    DmtxPropYmin,
    DmtxPropYmax,
    DmtxPropScale,
-   
+
    DmtxPropLast=$10000 // make sure sizeof is large enough in structures/records
 );
 
@@ -247,7 +247,7 @@ DmtxPackOrder=(
    DmtxPack32bppBGRX,
    DmtxPack32bppXBGR,
    DmtxPack32bppCMYK,
-   
+
    DmtxPackLast=$10000 // make sure sizeof is large enough in structures/records
 );
 
@@ -255,7 +255,7 @@ DmtxFlip=(
   DmtxFlipNone = 0, //              = 0x00,
   DmtxFlipX    = 1, //              = 0x01 << 0,
   DmtxFlipY    = 2, //              = 0x01 << 1,
-   
+
   DmtxFlipLast=$10000 // make sure sizeof is large enough in structures/records
 );
 
@@ -341,6 +341,8 @@ DmtxBestLine = record
   locNeg:DmtxPixelLoc;
 end;
 
+ppDmtxRegion=^pDmtxRegion;
+pDmtxRegion=^DmtxRegion;
 DmtxRegion= record
   //* Trail blazing values */
   jumpToPos:integer;
@@ -436,8 +438,14 @@ typedef struct DmtxTime_struct {
    time_t          sec;
    unsigned long   usec;
 } DmtxTime;*)
+pDmtxTime=^DmtxTime;
+DmtxTime=record
+  sec: longint; // for 32-bit systems. Int64 on 64-bit system
+  usec: cardinal;
+end;
 
 pDmtxDecode=^DmtxDecode;
+ppDmtxDecode=^pDmtxDecode;
 DmtxDecode=record
   edgeMin:integer;
   edgeMax:integer;
@@ -459,8 +467,8 @@ DmtxDecode=record
   //TODO: DmtxScanGrid    grid;
 end;
 
-PDmtxEncode = ^DmtxEncode;
-PPDmtxEncode = ^PDmtxEncode;
+pDmtxEncode = ^DmtxEncode;
+ppDmtxEncode = ^pDmtxEncode;
 DmtxEncode = record
   method         :integer;
   scheme         :integer;
@@ -536,45 +544,55 @@ dmtxEncodeDataMatrix:function(enc:pDmtxEncode;n:integer;s:pByte):cardinal;cdecl;
 //extern DmtxPassFail dmtxEncodeDataMosaic(DmtxEncode *enc, int n, unsigned char *s);
 dmtxEncodeDataMosaic:function(enc:pDmtxEncode;n:integer;s:pByte):cardinal;cdecl;
 
-(*/* dmtxdecode.c */
-extern DmtxDecode *dmtxDecodeCreate(DmtxImage *img, int scale);
-extern DmtxPassFail dmtxDecodeDestroy(DmtxDecode **dec);
-extern DmtxPassFail dmtxDecodeSetProp(DmtxDecode *dec, int prop, int value);
-extern int dmtxDecodeGetProp(DmtxDecode *dec, int prop);
-extern /*@exposed@*/ unsigned char *dmtxDecodeGetCache(DmtxDecode *dec, int x, int y);
-extern DmtxPassFail dmtxDecodeGetPixelValue(DmtxDecode *dec, int x, int y, int channel, /*@out@*/ int *value);
-extern DmtxMessage *dmtxDecodeMatrixRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
-extern DmtxMessage *dmtxDecodeMosaicRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
-extern unsigned char *dmtxDecodeCreateDiagnostic(DmtxDecode *dec, /*@out@*/ int *totalBytes, /*@out@*/ int *headerBytes, int style);
-*)
-(*
-/* dmtxregion.c */
-extern DmtxRegion *dmtxRegionCreate(DmtxRegion *reg);
-extern DmtxPassFail dmtxRegionDestroy(DmtxRegion **reg);
-extern DmtxRegion *dmtxRegionFindNext(DmtxDecode *dec, DmtxTime *timeout);
-extern DmtxRegion *dmtxRegionScanPixel(DmtxDecode *dec, int x, int y);
-extern DmtxPassFail dmtxRegionUpdateCorners(DmtxDecode *dec, DmtxRegion *reg, DmtxVector2 p00,
-      DmtxVector2 p10, DmtxVector2 p11, DmtxVector2 p01);
-extern DmtxPassFail dmtxRegionUpdateXfrms(DmtxDecode *dec, DmtxRegion *reg);
-*)
+///* dmtxdecode.c */
+//extern DmtxDecode *dmtxDecodeCreate(DmtxImage *img, int scale);
+dmtxDecodeCreate:function(img:pDmtxImage;scale:integer):pDmtxDecode;cdecl;
+//extern DmtxPassFail dmtxDecodeDestroy(DmtxDecode **dec);
+dmtxDecodeDestroy:function(dec: ppDmtxDecode):cardinal;cdecl;
+//extern DmtxPassFail dmtxDecodeSetProp(DmtxDecode *dec, int prop, int value);
+dmtxDecodeSetProp:function(dec:pDmtxDecode;prop:DmtxProperty;value:integer):cardinal;cdecl;
+//extern int dmtxDecodeGetProp(DmtxDecode *dec, int prop);
+//extern /*@exposed@*/ unsigned char *dmtxDecodeGetCache(DmtxDecode *dec, int x, int y);
+//extern DmtxPassFail dmtxDecodeGetPixelValue(DmtxDecode *dec, int x, int y, int channel, /*@out@*/ int *value);
+//extern DmtxMessage *dmtxDecodeMatrixRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
+dmtxDecodeMatrixRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;
+//extern DmtxMessage *dmtxDecodeMosaicRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
+dmtxDecodeMosaicRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;
+//extern unsigned char *dmtxDecodeCreateDiagnostic(DmtxDecode *dec, /*@out@*/ int *totalBytes, /*@out@*/ int *headerBytes, int style);
+
+
+//* dmtxregion.c */
+//extern DmtxRegion *dmtxRegionCreate(DmtxRegion *reg);
+//extern DmtxPassFail dmtxRegionDestroy(DmtxRegion **reg);
+dmtxRegionDestroy:function(reg: pDmtxRegion):cardinal;cdecl;
+//extern DmtxRegion *dmtxRegionFindNext(DmtxDecode *dec, DmtxTime *timeout);
+dmtxRegionFindNext:function(dec: pDmtxDecode; timeout:pDmtxTime):pDmtxRegion;cdecl;
+//extern DmtxRegion *dmtxRegionScanPixel(DmtxDecode *dec, int x, int y);
+//extern DmtxPassFail dmtxRegionUpdateCorners(DmtxDecode *dec, DmtxRegion *reg, DmtxVector2 p00,
+//      DmtxVector2 p10, DmtxVector2 p11, DmtxVector2 p01);
+//extern DmtxPassFail dmtxRegionUpdateXfrms(DmtxDecode *dec, DmtxRegion *reg);
+
 (*
 /* dmtxmessage.c */
 extern DmtxMessage *dmtxMessageCreate(int sizeIdx, int symbolFormat);
 extern DmtxPassFail dmtxMessageDestroy(DmtxMessage **msg);
 *)
-(*
-/* dmtximage.c */
-extern DmtxImage *dmtxImageCreate(unsigned char *pxl, int width, int height, int pack);
-extern DmtxPassFail dmtxImageDestroy(DmtxImage **img);
-extern DmtxPassFail dmtxImageSetChannel(DmtxImage *img, int channelStart, int bitsPerChannel);
-extern DmtxPassFail dmtxImageSetProp(DmtxImage *img, int prop, int value);
-extern int dmtxImageGetProp(DmtxImage *img, int prop);
-extern int dmtxImageGetByteOffset(DmtxImage *img, int x, int y);
-extern DmtxPassFail dmtxImageGetPixelValue(DmtxImage *img, int x, int y, int channel, /*@out@*/ int *value);
-extern DmtxPassFail dmtxImageSetPixelValue(DmtxImage *img, int x, int y, int channel, int value);
-extern DmtxBoolean dmtxImageContainsInt(DmtxImage *img, int margin, int x, int y);
-extern DmtxBoolean dmtxImageContainsFloat(DmtxImage *img, double x, double y);
-*)
+
+///* dmtximage.c */
+//extern DmtxImage *dmtxImageCreate(unsigned char *pxl, int width, int height, int pack);
+dmtxImageCreate:function(pxl:pByte; width, height:integer; pack : DmtxPackOrder):pDmtxImage;cdecl;
+//extern DmtxPassFail dmtxImageDestroy(DmtxImage **img);
+dmtxImageDestroy:function(img:ppDmtxImage):cardinal;cdecl;
+//extern DmtxPassFail dmtxImageSetChannel(DmtxImage *img, int channelStart, int bitsPerChannel);
+//extern DmtxPassFail dmtxImageSetProp(DmtxImage *img, int prop, int value);
+dmtxImageSetProp:function(img:pDmtxImage;prop:DmtxProperty;value:integer):cardinal;cdecl;
+//extern int dmtxImageGetProp(DmtxImage *img, int prop);
+//extern int dmtxImageGetByteOffset(DmtxImage *img, int x, int y);
+//extern DmtxPassFail dmtxImageGetPixelValue(DmtxImage *img, int x, int y, int channel, /*@out@*/ int *value);
+//extern DmtxPassFail dmtxImageSetPixelValue(DmtxImage *img, int x, int y, int channel, int value);
+//extern DmtxBoolean dmtxImageContainsInt(DmtxImage *img, int margin, int x, int y);
+//extern DmtxBoolean dmtxImageContainsFloat(DmtxImage *img, double x, double y);
+
 (*
 /* dmtxvector2.c */
 extern DmtxVector2 *dmtxVector2AddTo(DmtxVector2 *v1, const DmtxVector2 *v2);
@@ -610,12 +628,13 @@ extern int dmtxMatrix3VMultiply(/*@out@*/ DmtxVector2 *vOut, DmtxVector2 *vIn, D
 extern int dmtxMatrix3VMultiplyBy(DmtxVector2 *v, DmtxMatrix3 m);
 extern void dmtxMatrix3Print(DmtxMatrix3 m);
 *)
-(*
-/* dmtxsymbol.c */
-extern int dmtxSymbolModuleStatus(DmtxMessage *mapping, int sizeIdx, int row, int col);
-extern int dmtxGetSymbolAttribute(int attribute, int sizeIdx);
-extern int dmtxGetBlockDataSize(int sizeIdx, int blockIdx);
-*)
+
+//* dmtxsymbol.c */
+//extern int dmtxSymbolModuleStatus(DmtxMessage *mapping, int sizeIdx, int row, int col);
+//extern int dmtxGetSymbolAttribute(int attribute, int sizeIdx);
+dmtxGetSymbolAttribute:function(attribute:integer;sizeIdx:integer):integer;cdecl;
+//extern int dmtxGetBlockDataSize(int sizeIdx, int blockIdx);
+
 (*
 /* dmtxbytelist.c */
 extern DmtxByteList dmtxByteListBuild(DmtxByte *storage, int capacity);
@@ -687,51 +706,40 @@ begin
     @dmtxEncodeDataMosaic := GetProcAddress(DLLHandle,'dmtxEncodeDataMosaic');
     Assert(@dmtxEncodeDataMosaic <> nil);
 
-(*    //dmtxDecode
-    @dmtxDecodeStructInit := GetProcAddress(DLLHandle,'dmtxDecodeStructInit');
-    Assert(@dmtxDecodeStructInit <> nil);
 
-    @dmtxDecodeStructDeInit := GetProcAddress(DLLHandle,'dmtxDecodeStructDeInit');
-    Assert(@dmtxDecodeStructDeInit <> nil);
+    @dmtxDecodeCreate := GetProcAddress(DLLHandle,'dmtxDecodeCreate');
+    Assert(@dmtxDecodeCreate <> nil);
+
+    @dmtxDecodeDestroy := GetProcAddress(DLLHandle,'dmtxDecodeDestroy');
+    Assert(@dmtxDecodeDestroy <> nil);
+
+    @dmtxDecodeSetProp := GetProcAddress(DLLHandle,'dmtxDecodeSetProp');
+    Assert(@dmtxDecodeSetProp <> nil);
 
     @dmtxDecodeMatrixRegion := GetProcAddress(DLLHandle,'dmtxDecodeMatrixRegion');
     Assert(@dmtxDecodeMatrixRegion <> nil);
 
-    @dmtxMessageMalloc := GetProcAddress(DLLHandle,'dmtxMessageMalloc');
-    Assert(@dmtxMessageMalloc <> nil);
+    @dmtxDecodeMosaicRegion := GetProcAddress(DLLHandle,'dmtxDecodeMosaicRegion');
+    Assert(@dmtxDecodeMosaicRegion <> nil);
 
-    @dmtxMessageFree := GetProcAddress(DLLHandle,'dmtxMessageFree');
-    Assert(@dmtxMessageFree <> nil);
+    @dmtxRegionDestroy := GetProcAddress(DLLHandle,'dmtxRegionDestroy');
+    Assert(@dmtxRegionDestroy <> nil);
 
-    // dmtxregion
-    @dmtxDecodeFindNextRegion := GetProcAddress(DLLHandle,'dmtxDecodeFindNextRegion');
-    Assert(@dmtxDecodeFindNextRegion <> nil);
+    @dmtxRegionFindNext := GetProcAddress(DLLHandle,'dmtxRegionFindNext');
+    Assert(@dmtxRegionFindNext <> nil);
 
-    @dmtxScanPixel := GetProcAddress(DLLHandle,'dmtxScanPixel');
-    Assert(@dmtxScanPixel <> nil);
+    @dmtxImageCreate := GetProcAddress(DLLHandle,'dmtxImageCreate');
+    Assert(@dmtxImageCreate <> nil);
 
-    // dmtximage
-    @dmtxImageMalloc := GetProcAddress(DLLHandle,'dmtxImageMalloc');
-    Assert(@dmtxImageMalloc <> nil);
+    @dmtxImageDestroy := GetProcAddress(DLLHandle,'dmtxImageDestroy');
+    Assert(@dmtxImageDestroy <> nil);
 
-    @dmtxImageFree := GetProcAddress(DLLHandle,'dmtxImageFree');
-    Assert(@dmtxImageFree <> nil);
-
-    @dmtxImageGetWidth := GetProcAddress(DLLHandle,'dmtxImageGetWidth');
-    Assert(@dmtxImageGetWidth <> nil);
-
-    @dmtxImageGetHeight := GetProcAddress(DLLHandle,'dmtxImageGetHeight');
-    Assert(@dmtxImageGetHeight <> nil);
-
-    @dmtxImageGetOffset := GetProcAddress(DLLHandle,'dmtxImageGetOffset');
-    Assert(@dmtxImageGetOffset <> nil);
-
-    // misc
-    @dmtxSymbolModuleStatus := GetProcAddress(DLLHandle,'dmtxSymbolModuleStatus');
-    Assert(@dmtxSymbolModuleStatus <> nil);
+    @dmtxImageSetProp := GetProcAddress(DLLHandle,'dmtxImageSetProp');
+    Assert(@dmtxImageSetProp <> nil);
 
     @dmtxGetSymbolAttribute := GetProcAddress(DLLHandle,'dmtxGetSymbolAttribute');
-    Assert(@dmtxGetSymbolAttribute <> nil);   *)
+    Assert(@dmtxGetSymbolAttribute <> nil);
+
   end
   else
   begin
