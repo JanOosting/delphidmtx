@@ -26,7 +26,7 @@ Apr/May 2008: adapted to version 0.5.0 of dmtxwrite and dmtxread
 Sep 2012: Adapted to version 0.7.4 of libdmtx, dmtxwrite and dmtxread
 }
 interface
-uses SysUtils, Windows, Graphics, dmtx, Classes;
+uses SysUtils, Windows, Graphics, Math, dmtx, Classes;
 
 
 const
@@ -61,18 +61,33 @@ type
   // Options for decoding
   DatamatrixDecodeOptions = record
     codewords:integer;           // Not implemented: provide all codewords in barcode
+    edgeMin:integer;             //* -e, --minimum-edge */
+    edgeMax:integer;             //* -E, --maximum-edge */
     scanGap:integer;             // gap between lines that scan for possible barcodes
+    timeoutMS:integer;           //* -m, --milliseconds */
     newline:integer;             // Not implemented: not appropriate in GUI
-    xRangeMin:integer;           // Do not scan pixels to left of
-    xRangeMax:integer;           // Do not scan pixels to right of
-    yRangeMin:integer;           // Do not scan pixels above
-    yRangeMax:integer;           // Do not scan pixels below
+    page:integer;                //* -p, --page */
+    squareDevn:integer;          //* -q, --square-deviation */
+    dpi:integer;                 //* -r, --resolution */
+    sizeIdxExpected:integer;     //* -s, --symbol-size */
+    edgeThresh:integer;          //* -t, --threshold */
+
+    xMin:integer;           // Do not scan pixels to left of
+    xMax:integer;           // Do not scan pixels to right of
+    yMin:integer;           // Do not scan pixels above
+    yMax:integer;           // Do not scan pixels below
+    regionPercentage: boolean;  // use region values as percentage
+    correctionsMax:integer;      //* -C, --corrections-max */
+    shrinkMax:integer;           //* -S, --shrink */
+    shrinkMin:integer;           //* -S, --shrink (if range specified) */
+    unicode:integer;             //* -U, --unicode */
+    stopAfter:integer;            //* -N, --stop-after */
     verbose:integer;             // Not implemneted: not appropriate in GUI
     corners:integer;             // Not implemented: provide locations of corners of barcode
     diagnose:integer;            // Not implemented: make copy of image with added diagnostic data
     fix_errors:integer;          // apply ECC error correction
     mosaic:integer;              // interpret detected regions as Data Mosaic barcodes
-    pageNumber:integer;          // Not implemented: prefix decoded message with fax/tiff page number
+    pageNumbers:integer;          // Not implemented: prefix decoded message with fax/tiff page number
   end;
 
 
@@ -100,7 +115,6 @@ function InitializeDatamatrixDecodeOptions:DatamatrixDecodeOptions;
 procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings);overload;
   // bitmap: a bitmap that can contain a datamatrix barcode
   // codes: an existing TStrings descendent (TStringList, Items property in a component)
-  //   currently recognition is stopped after one code is recognized
 
 // Decode a datamatrix barcode with custom options
 procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings;options:DatamatrixDecodeOptions);overload;
@@ -114,6 +128,61 @@ const bufferSize=4096;
 type
   TRGBArray    = ARRAY[0..4095] OF TRGBTriple;
   pRGBArray    = ^TRGBArray;
+
+// Utility functions
+procedure ClearAndFreeObjects(strings:TStrings);
+var
+  I: Integer;
+begin
+  for I := 0 to strings.Count-1 do
+  begin
+    if assigned(strings.Objects[i]) then
+      strings.Objects[i].Free;
+  end;
+  strings.Clear;
+end;
+
+function DIBtoImage(bitmap:TBitmap):PDmtxImage;
+var
+  bm:TBitmap;
+  rowsize:cardinal;
+  row:cardinal;
+  source,destination:pointer;
+begin
+  // make a copy with 24bit in order not to change the original
+  bm:=TBitmap.Create;
+  try
+    bm.PixelFormat:=pf24bit;
+    bm.Width:=bitmap.Width;
+    bm.Height:=bitmap.Height;
+    bm.Canvas.Draw(0,0,bitmap);
+    destination:=GetMemory(bm.Width*bm.Height*SizeOf(TRGBTriple));
+    result:=dmtxImageCreate(destination, bm.width, bm.height, DmtxPack24bppRGB);
+
+    rowsize:=result.width*SizeOf(TRGBTriple);
+
+    for row := 0 to result.height - 1 do
+    begin
+      source:=bm.ScanLine[row];
+      //source:=bm.ScanLine[result.height-row-1];
+      destination:=pointer(cardinal(result.pxl)+row*rowsize);
+      Move(source^,destination^,rowsize);
+    end;
+
+  finally
+    bm.Free;
+  end;
+end;
+
+function ScaleNumber(value, size:integer;doScale:boolean):integer;
+begin
+  if doScale then
+    result:= max(min(value * (size-1) div 100,size-1),0)
+  else
+    result:=value;
+end;
+
+
 
 function InitializeDatamatrixEncodeOptions:DatamatrixEncodeOptions;
 var
@@ -240,7 +309,8 @@ begin
   for row := 0 to encode.image.height - 1 do
   begin
     source:=pointer(cardinal(encode.image.pxl)+row*rowsize);
-    destination:=bitmap.ScanLine[encode.image.height-row-1];
+    //destination:=bitmap.ScanLine[encode.image.height-row-1];
+    destination:=bitmap.ScanLine[row];
     Move(source^,destination^,rowsize);
   end;
   if options.rotate<>0 then
@@ -253,19 +323,114 @@ end;
 
 function InitializeDatamatrixDecodeOptions:DatamatrixDecodeOptions;
 begin
-  result.codewords := 0;
-  result.scanGap := 5;
-  result.newline := 0;
-  result.xRangeMin := -1;
-  result.xRangeMax := -1;
-  result.yRangeMin := -1;
-  result.yRangeMax := -1;
-  result.verbose := 0;
-  result.corners := 0;
-  result.diagnose:=0;
-  result.fix_errors:=1;
-  result.mosaic := 0;
-  result.pageNumber := 0;
+   result.codewords := DmtxFalse;
+   result.edgeMin := DmtxUndefined;
+   result.edgeMax := DmtxUndefined;
+   result.scanGap := 2;
+   result.timeoutMS := DmtxUndefined;
+   result.newline := DmtxFalse;
+   result.page := DmtxUndefined;
+   result.squareDevn := DmtxUndefined;
+   result.dpi := DmtxUndefined;
+   result.sizeIdxExpected := integer(DmtxSymbolShapeAuto);
+   result.edgeThresh := 5;
+   result.xMin := DmtxUndefined;
+   result.xMax := DmtxUndefined;
+   result.yMin := DmtxUndefined;
+   result.yMax := DmtxUndefined;
+   result.regionPercentage := false;
+   result.correctionsMax := DmtxUndefined;
+   result.diagnose := DmtxFalse;
+   result.mosaic := DmtxFalse;
+   result.stopAfter := DmtxUndefined;
+   result.pageNumbers := DmtxFalse;
+   result.corners := DmtxFalse;
+   result.shrinkMin := 1;
+   result.shrinkMax := 1;
+   result.unicode := DmtxFalse;
+   result.verbose := DmtxFalse;
+end;
+
+function SetDecodeOptions(decode:pDmtxDecode;image:pDmtxImage;options:DatamatrixDecodeOptions):boolean;
+begin
+  try
+    if dmtxDecodeSetProp(decode, DmtxPropScanGap, options.scanGap)=DmtxFail then raise Exception.Create('');
+
+    if(options.edgeMin <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropEdgeMin, options.edgeMin)=DmtxFail then raise Exception.Create('');
+
+    if(options.edgeMax <> DmtxUndefined) then
+       if dmtxDecodeSetProp(decode, DmtxPropEdgeMax, options.edgeMax)=DmtxFail then raise Exception.Create('');
+
+    if(options.squareDevn <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropSquareDevn, options.squareDevn)=DmtxFail then raise Exception.Create('');
+
+    if dmtxDecodeSetProp(decode, DmtxPropSymbolSize, options.sizeIdxExpected)=DmtxFail then raise Exception.Create('');
+
+    if dmtxDecodeSetProp(decode, DmtxPropEdgeThresh, options.edgeThresh)=DmtxFail then raise Exception.Create('');
+
+    if(options.xMin <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropXmin, ScaleNumber(options.xMin, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+
+    if(options.xMax <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropXmax, ScaleNumber(options.xMax, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+
+    if(options.yMin <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropYmin, ScaleNumber(options.yMin, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+
+    if(options.xMax <> DmtxUndefined) then
+      if dmtxDecodeSetProp(decode, DmtxPropYmax, ScaleNumber(options.yMax, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+    result:=true;
+  except
+    result:=false;
+  end;
+
+end;
+
+procedure DecodeMessage(msg:pDmtxMessage; region:pDMtxRegion; codes:TStrings;options:DatamatrixDecodeOptions);
+begin
+  codes.Add(PAnsiChar(msg.output));
+end;
+
+
+procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings;options:DatamatrixDecodeOptions);overload;
+var
+  decode:pDmtxDecode;
+  image:PDmtxImage;
+  region: pDmtxRegion;
+  p0,p1: DmtxPixelLoc;
+  msg:pDmtxMessage;
+  PageScanCount: Integer;
+
+begin
+  codes.Clear;
+  image:=DIBtoImage(bitmap);
+  dmtxImageSetProp(image, DmtxPropImageFlip, Integer(DmtxFlipNone));
+  decode := dmtxDecodeCreate(image, 1);
+  try
+    if SetDecodeOptions(decode,image,options) then
+    begin
+      PageScanCount:=0;
+      while true do
+      begin
+        region:= dmtxRegionFindNext(decode,nil);   //TODO: control timeout
+        if not assigned(region) then
+          break;
+        if options.mosaic = DmtxTrue then
+          msg:= dmtxDecodeMosaicRegion(decode, region, options.correctionsMax)
+        else
+          msg:= dmtxDecodeMatrixRegion(decode, region, options.correctionsMax);
+        if assigned(msg) then
+        begin
+          DecodeMessage(msg,region,codes,options);
+          dmtxMessageDestroy(@msg);
+        end;
+      end;
+    end;
+  finally
+    FreeMemory(image.pxl);
+    dmtxImageDestroy(@image);
+  end;
 end;
 
 procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings);overload;
@@ -273,96 +438,5 @@ begin
   DecodeDatamatrix(bitmap,codes,InitializeDatamatrixDecodeOptions);
 end;
 
-function DIBtoImage(bitmap:TBitmap):PDmtxImage;
-var
-  bm:TBitmap;
-  rowsize:cardinal;
-  row:cardinal;
-  source,destination:pointer;
-begin
-  // make a copy with 24bit in order not to change the original
-  bm:=TBitmap.Create;
-  try
-    bm.PixelFormat:=pf24bit;
-    bm.Width:=bitmap.Width;
-    bm.Height:=bitmap.Height;
-    bm.Canvas.Draw(0,0,bitmap);
-    destination:=GetMemory(bm.Width*bm.Height*SizeOf(TRGBTriple));
-    result:=dmtxImageCreate(destination, bm.width, bm.height, DmtxPack24bppRGB);
-
-    rowsize:=result.width*SizeOf(TRGBTriple);
-
-    for row := 0 to result.height - 1 do
-    begin
-      //source:=bm.ScanLine[row];
-      source:=bm.ScanLine[result.height-row-1];
-      destination:=pointer(cardinal(result.pxl)+row*rowsize);
-      Move(source^,destination^,rowsize);
-    end;
-
-  finally
-    bm.Free;
-  end;
-end;
-
-procedure SetScanRegion(var p0,p1:DmtxPixelLoc;var options:DatamatrixDecodeOptions;image:PDmtxImage);
-var
-  error:boolean;
-  function checkRange(var target:integer; option:integer;minMax:integer;limit:integer):boolean;
-  begin
-    if option=-1 then
-      target:=limit * minMax
-    else
-      target:=option;
-    result:= (target<0) or (target>limit);
-  end;
-
-begin
-  error:=checkRange(p0.X,options.xRangeMin,0,image.width-1) or
-         checkRange(p0.Y,options.yRangeMin,0,image.height-1) or
-         checkRange(p1.X,options.xRangeMax,1,image.width-1) or
-         checkRange(p1.Y,options.yRangeMax,1,image.height-1);
-  if error then
-    raise EDataMatrixException.Create('Badly formed range parameter');
-  if (p0.X >= p1.x) or (p0.Y >= p1.Y) then
-    raise EDataMatrixException.Create('Specified range has non-positive area');
-end;
-
-(*procedure DecodeOutput(options:DatamatrixDecodeOptions; image: pDmtxImage;
-    region:pDmtxRegion; _message: pDmtxmessage; pageIndex:integer; codes:TStrings);
-//var
-  //dataWordLength:integer;
-  //rotateInt:integer;
-  //rotate:double;
-
-begin
-
-  //dataWordLength := dmtxGetSymbolAttribute(DmtxSymAttribDataWordLength, region.sizeIdx);
-  codes.Add(pChar(_message.output));
-end;*)
-
-procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings;options:DatamatrixDecodeOptions);overload;
-var
-  decode:pDmtxDecode;
-  image:PDmtxImage;
-  region: DmtxRegion;
-  p0,p1: DmtxPixelLoc;
-  _message:pDmtxMessage;
-
-begin
-  codes.Clear;
-  image:=DIBtoImage(bitmap);
-  dmtxImageSetProp(image, DmtxPropImageFlip, Integer(DmtxFlipNone));
-  decode := dmtxDecodeCreate(image, 1);
-
-
-
-
-  try
-  finally
-    FreeMemory(image.pxl);
-    dmtxImageDestroy(@image);
-  end;
-end;
 
 end.

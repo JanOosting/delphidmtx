@@ -131,21 +131,21 @@ begin
     decOptions:=InitializeDatamatrixDecodeOptions;
     if shpSelector.Width>0 then
     begin
-      decoptions.xRangeMin:=shpSelector.Left;
-      decOptions.xRangeMax:=shpSelector.Left+shpSelector.Width;
+      decoptions.xMin:=shpSelector.Left;
+      decOptions.xMax:=shpSelector.Left+shpSelector.Width;
     end
     else begin
-      decoptions.xRangeMin:=shpSelector.Left+shpSelector.Width;
-      decOptions.xRangeMax:=shpSelector.Left;
+      decoptions.xMin:=shpSelector.Left+shpSelector.Width;
+      decOptions.xMax:=shpSelector.Left;
     end;
     if shpSelector.Height>0 then
     begin
-      decOptions.yRangeMin:=shpSelector.Top;
-      decOptions.yRangeMax:=shpSelector.Top+shpSelector.Height;
+      decOptions.yMin:=shpSelector.Top;
+      decOptions.yMax:=shpSelector.Top+shpSelector.Height;
     end
     else begin
-      decOptions.yRangeMin:=shpSelector.Top+shpSelector.Height;
-      decOptions.yRangeMax:=shpSelector.Top;
+      decOptions.yMin:=shpSelector.Top+shpSelector.Height;
+      decOptions.yMax:=shpSelector.Top;
     end;
     DecodeDatamatrix(imgScan.Picture.Bitmap,memScanResults.Lines,decOptions);
   end

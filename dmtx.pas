@@ -391,6 +391,7 @@ DmtxRegion= record
   fit2raw:DmtxMatrix3 ;   //* 3x3 transformation from fitted barcode grid to raw image */
 end;
 
+ppDmtxMessage=^pDmtxMessage;
 pDmtxMessage=^DmtxMessage;
 DmtxMessage = record
    arraySize   :cardinal;      //* mappingRows * mappingCols */
@@ -555,9 +556,9 @@ dmtxDecodeSetProp:function(dec:pDmtxDecode;prop:DmtxProperty;value:integer):card
 //extern /*@exposed@*/ unsigned char *dmtxDecodeGetCache(DmtxDecode *dec, int x, int y);
 //extern DmtxPassFail dmtxDecodeGetPixelValue(DmtxDecode *dec, int x, int y, int channel, /*@out@*/ int *value);
 //extern DmtxMessage *dmtxDecodeMatrixRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
-dmtxDecodeMatrixRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;
+dmtxDecodeMatrixRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;cdecl;
 //extern DmtxMessage *dmtxDecodeMosaicRegion(DmtxDecode *dec, DmtxRegion *reg, int fix);
-dmtxDecodeMosaicRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;
+dmtxDecodeMosaicRegion:function(dec:pDmtxDecode; reg:pDmtxRegion; fix:integer):pDmtxMessage;cdecl;
 //extern unsigned char *dmtxDecodeCreateDiagnostic(DmtxDecode *dec, /*@out@*/ int *totalBytes, /*@out@*/ int *headerBytes, int style);
 
 
@@ -572,11 +573,10 @@ dmtxRegionFindNext:function(dec: pDmtxDecode; timeout:pDmtxTime):pDmtxRegion;cde
 //      DmtxVector2 p10, DmtxVector2 p11, DmtxVector2 p01);
 //extern DmtxPassFail dmtxRegionUpdateXfrms(DmtxDecode *dec, DmtxRegion *reg);
 
-(*
-/* dmtxmessage.c */
-extern DmtxMessage *dmtxMessageCreate(int sizeIdx, int symbolFormat);
-extern DmtxPassFail dmtxMessageDestroy(DmtxMessage **msg);
-*)
+//* dmtxmessage.c */
+//extern DmtxMessage *dmtxMessageCreate(int sizeIdx, int symbolFormat);
+//extern DmtxPassFail dmtxMessageDestroy(DmtxMessage **msg);
+dmtxMessageDestroy:function(msg:ppDmtxMessage ):cardinal;cdecl;
 
 ///* dmtximage.c */
 //extern DmtxImage *dmtxImageCreate(unsigned char *pxl, int width, int height, int pack);
@@ -739,6 +739,10 @@ begin
 
     @dmtxGetSymbolAttribute := GetProcAddress(DLLHandle,'dmtxGetSymbolAttribute');
     Assert(@dmtxGetSymbolAttribute <> nil);
+
+    @dmtxMessageDestroy := GetProcAddress(DLLHandle,'dmtxMessageDestroy');
+    Assert(@dmtxMessageDestroy <> nil);
+
 
   end
   else
