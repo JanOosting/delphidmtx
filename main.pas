@@ -114,6 +114,7 @@ begin
     imgScan.Picture.LoadFromFile(OpenPictureDialog.FileName);
     imgScan.Width:=imgScan.Picture.Width;
     imgScan.Height:=imgScan.Picture.Height;
+
     shpSelector.visible:=false;
   end;
 end;
@@ -138,14 +139,14 @@ begin
       decoptions.xMin:=shpSelector.Left+shpSelector.Width;
       decOptions.xMax:=shpSelector.Left;
     end;
-    if shpSelector.Height>0 then
+    if shpSelector.Height<0 then
     begin
-      decOptions.yMin:=shpSelector.Top;
-      decOptions.yMax:=shpSelector.Top+shpSelector.Height;
+      decOptions.yMin:=imgScan.Picture.Bitmap.Height-shpSelector.Top;
+      decOptions.yMax:=imgScan.Picture.Bitmap.Height-(shpSelector.Top+shpSelector.Height);
     end
     else begin
-      decOptions.yMin:=shpSelector.Top+shpSelector.Height;
-      decOptions.yMax:=shpSelector.Top;
+      decOptions.yMin:=imgScan.Picture.Bitmap.Height-(shpSelector.Top+shpSelector.Height);
+      decOptions.yMax:=imgScan.Picture.Bitmap.Height-shpSelector.Top;
     end;
     DecodeDatamatrix(imgScan.Picture.Bitmap,memScanResults.Lines,decOptions);
   end

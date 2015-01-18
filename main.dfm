@@ -22,15 +22,11 @@ object frmMain: TfrmMain
     Top = 8
     Width = 553
     Height = 395
-    ActivePage = tsWrite
+    ActivePage = tsRead
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     object tsWrite: TTabSheet
       Caption = 'Create Datamatrix'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         545
         367)
@@ -762,10 +758,6 @@ object frmMain: TfrmMain
     object tsRead: TTabSheet
       Caption = 'Scan Datamatrix'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         545
         367)

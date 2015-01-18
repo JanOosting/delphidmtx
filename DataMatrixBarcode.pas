@@ -26,7 +26,7 @@ Apr/May 2008: adapted to version 0.5.0 of dmtxwrite and dmtxread
 Sep 2012: Adapted to version 0.7.4 of libdmtx, dmtxwrite and dmtxread
 }
 interface
-uses SysUtils, Windows, Graphics, Math, dmtx, Classes;
+uses SysUtils, Windows, Graphics, Math, dmtx, Classes, JPEG;
 
 
 const
@@ -378,7 +378,7 @@ begin
     if(options.yMin <> DmtxUndefined) then
       if dmtxDecodeSetProp(decode, DmtxPropYmin, ScaleNumber(options.yMin, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
 
-    if(options.xMax <> DmtxUndefined) then
+    if(options.yMax <> DmtxUndefined) then
       if dmtxDecodeSetProp(decode, DmtxPropYmax, ScaleNumber(options.yMax, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
     result:=true;
   except
