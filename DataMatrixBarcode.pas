@@ -111,6 +111,8 @@ procedure EncodeDatamatrix(code:string;bitmap:TBitmap;options:DatamatrixEncodeOp
 // Set an Options record to default values
 function InitializeDatamatrixDecodeOptions:DatamatrixDecodeOptions;
 
+// Prepare a bitmap for finding barcodes
+function DIBtoImage(bitmap:TBitmap):PDmtxImage;
 // Decode a datamatrix barcode with default options
 procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings);overload;
   // bitmap: a bitmap that can contain a datamatrix barcode
@@ -121,6 +123,25 @@ procedure DecodeDatamatrix(bitmap:TBitmap;codes:TStrings;options:DatamatrixDecod
 // options can be set analogous to EncodeDatamatrix with options
 
 procedure RotateQuartiles(angle:integer;bitmap:TBitmap);
+
+Type
+  TDataMatrixDecode = class(TObject)
+  private
+    fDecode:pDmtxDecode;
+    fImage:PDmtxImage;
+    fOptions:DatamatrixDecodeOptions;
+    function GetStopafter: integer;
+    function GettimeoutMS: integer;
+    procedure SetStopAfter(const Value: integer);
+    procedure SettimeoutMS(const Value: integer);
+  public
+    constructor Create(bitmap:TBitmap);
+    destructor Destroy;override;
+    procedure Decode(codes:TStrings);
+    procedure DecodeRegion(codes:TStrings;rect:TRect);
+    property StopAfter:integer read GetStopafter write SetStopAfter;
+    property timeoutMS:integer read GettimeoutMS write SettimeoutMS;
+  end;
 
 implementation
 const bufferSize=4096;
@@ -384,12 +405,15 @@ begin
   except
     result:=false;
   end;
-
 end;
 
 procedure DecodeMessage(msg:pDmtxMessage; region:pDMtxRegion; codes:TStrings;options:DatamatrixDecodeOptions);
+var
+  aRegion:pDmtxRegion;
 begin
-  codes.Add(PAnsiChar(msg.output));
+  new(aRegion);
+  aRegion^:=region^;
+  codes.AddObject(PAnsiChar(msg.output),TObject(aRegion));
 end;
 
 
@@ -438,5 +462,106 @@ begin
   DecodeDatamatrix(bitmap,codes,InitializeDatamatrixDecodeOptions);
 end;
 
+
+{ TDataMatrixDecode }
+
+constructor TDataMatrixDecode.Create(bitmap: TBitmap);
+begin
+  fImage:=DIBtoImage(bitmap);
+  dmtxImageSetProp(fImage, DmtxPropImageFlip, Integer(DmtxFlipNone));
+  fOptions:=InitializeDatamatrixDecodeOptions;
+end;
+
+procedure TDataMatrixDecode.Decode(codes: TStrings);
+begin
+  DecodeRegion(codes,Rect(0,0,fImage.width,fImage.height));
+end;
+
+procedure TDataMatrixDecode.DecodeRegion(codes: TStrings; rect: TRect);
+var
+  time : pDmtxTime;
+  region: pDmtxRegion;
+  msg:pDmtxMessage;
+  codecount:integer;
+begin
+  if rect.Right>0 then
+  begin
+    foptions.xMin:=rect.Left;
+    fOptions.xMax:=rect.Left+rect.Right;
+  end
+  else begin
+    foptions.xMin:=rect.Left+rect.Right;
+    fOptions.xMax:=rect.Left;
+  end;
+  if rect.Bottom>0 then
+  begin
+    fOptions.yMin:=fIMage.Height-(rect.Top+rect.Bottom);
+    fOptions.yMax:=fImage.Height-rect.Top;
+  end
+  else begin
+    fOptions.yMin:=fImage.Height-rect.Top;
+    fOptions.yMax:=fImage.Height-(rect.Top+rect.Bottom);
+  end;
+  if fOptions.timeoutMS<>DmtxUndefined then
+  begin
+    New(time);
+    time^.sec:=fOptions.timeoutMS div 1000;
+    time^.usec:=(fOptions.timeoutMS mod 1000) * 1000;
+  end
+  else
+    time:=nil;
+  codecount:=0;
+  fDecode:=dmtxDecodeCreate(fImage, 1);
+  if SetDecodeOptions(fDecode,fImage,fOptions) then
+  begin
+    while (fOptions.stopAfter=DmtxUndefined) or (codecount<fOptions.stopAfter) do
+    begin
+      region:= dmtxRegionFindNext(fdecode,time);
+      if not assigned(region) then
+        break;
+      if fOptions.mosaic = DmtxTrue then
+        msg:= dmtxDecodeMosaicRegion(fDecode, region, fOptions.correctionsMax)
+      else
+        msg:= dmtxDecodeMatrixRegion(fDecode, region, fOptions.correctionsMax);
+      if assigned(msg) then
+      begin
+        DecodeMessage(msg,region,codes,fOptions);
+        dmtxMessageDestroy(@msg);
+      end;
+      if assigned(msg) and (codes[codes.Count-1]<>'') then
+        Inc(codecount);
+    end;
+  end;
+  dmtxDecodeDestroy(@fDecode);
+  if Assigned(time) then
+    Dispose(time);
+end;
+
+destructor TDataMatrixDecode.Destroy;
+begin
+  FreeMemory(fImage.pxl);
+  dmtxImageDestroy(@fImage);
+  inherited;
+end;
+
+function TDataMatrixDecode.GetStopafter: integer;
+begin
+  result:=fOptions.stopAfter;
+end;
+
+function TDataMatrixDecode.GettimeoutMS: integer;
+begin
+  result:=fOptions.timeoutMS;
+end;
+
+procedure TDataMatrixDecode.SetStopAfter(const Value: integer);
+begin
+  fOptions.stopAfter:=Value;
+end;
+
+procedure TDataMatrixDecode.SettimeoutMS(const Value: integer);
+begin
+  fOptions.timeoutMS:=value;
+end;
 
 end.
