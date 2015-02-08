@@ -526,10 +526,10 @@ begin
       if assigned(msg) then
       begin
         DecodeMessage(msg,region,codes,fOptions);
+        if (codes[codes.Count-1]<>'') then
+          Inc(codecount);
         dmtxMessageDestroy(@msg);
       end;
-      if assigned(msg) and (codes[codes.Count-1]<>'') then
-        Inc(codecount);
     end;
   end;
   dmtxDecodeDestroy(@fDecode);
