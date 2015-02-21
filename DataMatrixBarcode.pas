@@ -134,13 +134,29 @@ Type
     function GettimeoutMS: integer;
     procedure SetStopAfter(const Value: integer);
     procedure SettimeoutMS(const Value: integer);
+    function GetedgeMax: integer;
+    function GetedgeMin: integer;
+    function GetedgeThresh: integer;
+    function GetScanGap: integer;
+    function getsquareDevn: integer;
+    procedure SetedgeMax(const Value: integer);
+    procedure SetedgeMin(const Value: integer);
+    procedure SetedgeThresh(const Value: integer);
+    procedure SetScanGap(const Value: integer);
+    procedure SetsquareDevn(const Value: integer);
   public
     constructor Create(bitmap:TBitmap);
     destructor Destroy;override;
     procedure Decode(codes:TStrings);
     procedure DecodeRegion(codes:TStrings;rect:TRect);
     property StopAfter:integer read GetStopafter write SetStopAfter;
-    property timeoutMS:integer read GettimeoutMS write SettimeoutMS;
+    property timeoutMS:integer read GettimeoutMS write SettimeoutMS;    //* -m, --milliseconds */
+    property scanGap:integer read GetScanGap write SetScanGap;          //* -g  --gap=N gap between lines that scan for possible barcodes
+    property edgeMin:integer read GetedgeMin write SetedgeMin;          //* -e, --minimum-edge */
+    property edgeMax:integer read GetedgeMax write SetedgeMax;          //* -E, --maximum-edge */
+    property squareDevn:integer read getsquareDevn write SetsquareDevn; //* -q, --square-deviation */
+    property edgeThresh:integer read GetedgeThresh write SetedgeThresh; //* -t, --threshold */
+
   end;
 
 implementation
@@ -375,32 +391,32 @@ end;
 function SetDecodeOptions(decode:pDmtxDecode;image:pDmtxImage;options:DatamatrixDecodeOptions):boolean;
 begin
   try
-    if dmtxDecodeSetProp(decode, DmtxPropScanGap, options.scanGap)=DmtxFail then raise Exception.Create('');
+    if dmtxDecodeSetProp(decode, DmtxPropScanGap, options.scanGap)=DmtxFail then raise Exception.Create('Illegal value for scangap');
 
     if(options.edgeMin <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropEdgeMin, options.edgeMin)=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropEdgeMin, options.edgeMin)=DmtxFail then raise Exception.Create('Illegal value for edgeMin');
 
     if(options.edgeMax <> DmtxUndefined) then
-       if dmtxDecodeSetProp(decode, DmtxPropEdgeMax, options.edgeMax)=DmtxFail then raise Exception.Create('');
+       if dmtxDecodeSetProp(decode, DmtxPropEdgeMax, options.edgeMax)=DmtxFail then raise Exception.Create('Illegal value for edgeMax');
 
     if(options.squareDevn <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropSquareDevn, options.squareDevn)=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropSquareDevn, options.squareDevn)=DmtxFail then raise Exception.Create('Illegal value for squareDevn');
 
-    if dmtxDecodeSetProp(decode, DmtxPropSymbolSize, options.sizeIdxExpected)=DmtxFail then raise Exception.Create('');
+    if dmtxDecodeSetProp(decode, DmtxPropSymbolSize, options.sizeIdxExpected)=DmtxFail then raise Exception.Create('Illegal value for sizeIdxExpedted');
 
-    if dmtxDecodeSetProp(decode, DmtxPropEdgeThresh, options.edgeThresh)=DmtxFail then raise Exception.Create('');
+    if dmtxDecodeSetProp(decode, DmtxPropEdgeThresh, options.edgeThresh)=DmtxFail then raise Exception.Create('Illegal value for edgeThresh');
 
     if(options.xMin <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropXmin, ScaleNumber(options.xMin, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropXmin, ScaleNumber(options.xMin, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('Illegal value for xMin');
 
     if(options.xMax <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropXmax, ScaleNumber(options.xMax, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropXmax, ScaleNumber(options.xMax, image.width, options.regionPercentage))=DmtxFail then raise Exception.Create('Illegal value for xMax');
 
     if(options.yMin <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropYmin, ScaleNumber(options.yMin, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropYmin, ScaleNumber(options.yMin, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('Illegal value for yMin');
 
     if(options.yMax <> DmtxUndefined) then
-      if dmtxDecodeSetProp(decode, DmtxPropYmax, ScaleNumber(options.yMax, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('');
+      if dmtxDecodeSetProp(decode, DmtxPropYmax, ScaleNumber(options.yMax, image.height, options.regionPercentage))=DmtxFail then raise Exception.Create('Illegal value for yMax');
     result:=true;
   except
     result:=false;
@@ -544,6 +560,31 @@ begin
   inherited;
 end;
 
+function TDataMatrixDecode.GetedgeMax: integer;
+begin
+  result:=fOptions.edgeMax;
+end;
+
+function TDataMatrixDecode.GetedgeMin: integer;
+begin
+  result:=fOptions.edgeMin;
+end;
+
+function TDataMatrixDecode.GetedgeThresh: integer;
+begin
+  result:=fOptions.edgeThresh;
+end;
+
+function TDataMatrixDecode.GetScanGap: integer;
+begin
+  Result:=fOptions.scanGap;
+end;
+
+function TDataMatrixDecode.getsquareDevn: integer;
+begin
+  Result:=fOptions.squareDevn;
+end;
+
 function TDataMatrixDecode.GetStopafter: integer;
 begin
   result:=fOptions.stopAfter;
@@ -552,6 +593,31 @@ end;
 function TDataMatrixDecode.GettimeoutMS: integer;
 begin
   result:=fOptions.timeoutMS;
+end;
+
+procedure TDataMatrixDecode.SetedgeMax(const Value: integer);
+begin
+  fOptions.edgeMax:=value;
+end;
+
+procedure TDataMatrixDecode.SetedgeMin(const Value: integer);
+begin
+  fOptions.edgeMin:=Value;
+end;
+
+procedure TDataMatrixDecode.SetedgeThresh(const Value: integer);
+begin
+  fOptions.edgeThresh:=value;
+end;
+
+procedure TDataMatrixDecode.SetScanGap(const Value: integer);
+begin
+  fOptions.scanGap:=value;
+end;
+
+procedure TDataMatrixDecode.SetsquareDevn(const Value: integer);
+begin
+  fOptions.squareDevn:=value;
 end;
 
 procedure TDataMatrixDecode.SetStopAfter(const Value: integer);
