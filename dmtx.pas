@@ -440,6 +440,7 @@ typedef struct DmtxTime_struct {
    unsigned long   usec;
 } DmtxTime;*)
 pDmtxTime=^DmtxTime;
+ppDmtxTime=^pDmtxTime;
 DmtxTime=record
   sec: longint; // for 32-bit systems. Int64 on 64-bit system
   usec: cardinal;
@@ -526,10 +527,15 @@ typedef struct DmtxQuadruplet_struct {
    unsigned char   value[4];
 } DmtxQuadruplet;*)
 var
-(*/* dmtxtime.c */
-extern DmtxTime dmtxTimeNow(void);
-extern DmtxTime dmtxTimeAdd(DmtxTime t, long msec);
-extern int dmtxTimeExceeded(DmtxTime timeout);*)
+//* dmtxtime.c */
+//extern DmtxTime *dmtxTimeNow(void);
+dmtxTimeNow: function:pDmtxTime;cdecl;
+//extern DmtxPassFail dmtxTimeDestroy(DmtxTime **t);
+dmtxTimeDestroy: function(t:ppDmtxTime):integer;cdecl;
+//extern DmtxPassFail dmtxTimeAdd(DmtxTime *t, long msec);
+dmtxTimeAdd: function(t:pDmtxTime;msec:integer):integer;cdecl;
+//extern int dmtxTimeExceeded(DmtxTime *timeout);*)
+dmtxTimeExceeded: function(timeout:pDmtxTime):integer;cdecl;
 
 //* dmtxencode.c */
 //extern DmtxEncode *dmtxEncodeCreate(void);
@@ -686,6 +692,19 @@ begin
 *)
     @dmtxDllVersion :=GetProcAddress(DLLHandle,'dmtxVersion');
     Assert(@dmtxDllVersion <> nil);
+
+    // dmtxtime
+    @dmtxTimeNow := GetProcAddress(DLLHandle,'dmtxTimeNow');
+    Assert(@dmtxTimeNow <> nil);
+
+    @dmtxTimeDestroy := GetProcAddress(DLLHandle,'dmtxTimeDestroy');
+    Assert(@dmtxTimeDestroy <> nil);
+
+    @dmtxTimeAdd:= GetProcAddress(DLLHandle,'dmtxTimeAdd');
+    Assert(@dmtxTimeAdd <> nil);
+
+    @dmtxTimeExceeded:= GetProcAddress(DLLHandle,'dmtxTimeExceeded');
+    Assert(@dmtxTimeExceeded <> nil);
 
     // dmtxencode
     @dmtxEncodeCreate := GetProcAddress(DLLHandle,'dmtxEncodeCreate');

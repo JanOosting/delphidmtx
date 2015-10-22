@@ -127,7 +127,6 @@ procedure RotateQuartiles(angle:integer;bitmap:TBitmap);
 Type
   TDataMatrixDecode = class(TObject)
   private
-    fDecode:pDmtxDecode;
     fImage:PDmtxImage;
     fOptions:DatamatrixDecodeOptions;
     function GetStopafter: integer;
@@ -156,8 +155,7 @@ Type
     property edgeMax:integer read GetedgeMax write SetedgeMax;          //* -E, --maximum-edge */
     property squareDevn:integer read getsquareDevn write SetsquareDevn; //* -q, --square-deviation */
     property edgeThresh:integer read GetedgeThresh write SetedgeThresh; //* -t, --threshold */
-
-  end;
+  end;
 
 implementation
 const bufferSize=4096;
@@ -423,12 +421,16 @@ begin
   end;
 end;
 
-procedure DecodeMessage(msg:pDmtxMessage; region:pDMtxRegion; codes:TStrings;options:DatamatrixDecodeOptions);
+procedure DecodeMessage(msg:pDmtxMessage; region:pDMtxRegion; codes:TStrings;options:DatamatrixDecodeOptions; adjust:Tpoint);
 var
   aRegion:pDmtxRegion;
 begin
   new(aRegion);
   aRegion^:=region^;
+  Inc(aRegion.boundMin.X,adjust.X);
+  Inc(aRegion.boundMin.Y,adjust.Y);
+  Inc(aRegion.boundMax.X,adjust.X);
+  Inc(aRegion.boundMax.Y,adjust.Y);
   codes.AddObject(PAnsiChar(msg.output),TObject(aRegion));
 end;
 
@@ -441,6 +443,7 @@ var
   p0,p1: DmtxPixelLoc;
   msg:pDmtxMessage;
   PageScanCount: Integer;
+  timeout: pDmtxTime;
 
 begin
   codes.Clear;
@@ -451,9 +454,15 @@ begin
     if SetDecodeOptions(decode,image,options) then
     begin
       PageScanCount:=0;
+      timeout:=nil;
+      if options.timeoutMS>0 then
+      begin
+        timeout:=dmtxTimeNow;
+        dmtxTimeAdd(timeout, options.timeoutMS);
+      end;
       while true do
       begin
-        region:= dmtxRegionFindNext(decode,nil);   //TODO: control timeout
+        region:= dmtxRegionFindNext(decode,timeout);
         if not assigned(region) then
           break;
         if options.mosaic = DmtxTrue then
@@ -462,13 +471,14 @@ begin
           msg:= dmtxDecodeMatrixRegion(decode, region, options.correctionsMax);
         if assigned(msg) then
         begin
-          DecodeMessage(msg,region,codes,options);
+          DecodeMessage(msg,region,codes,options,Point(0,0));
           dmtxMessageDestroy(@msg);
         end;
       end;
     end;
   finally
     FreeMemory(image.pxl);
+    dmtxTimeDestroy(@timeout);
     dmtxImageDestroy(@image);
   end;
 end;
@@ -495,10 +505,16 @@ end;
 
 procedure TDataMatrixDecode.DecodeRegion(codes: TStrings; rect: TRect);
 var
-  time : pDmtxTime;
+  fDecode:pDmtxDecode;
+  image:PDmtxImage;
+  options:DatamatrixDecodeOptions;
+  timeout : pDmtxTime;
   region: pDmtxRegion;
   msg:pDmtxMessage;
   codecount:integer;
+  rectwidth, rectheight, destrowsize, row : cardinal;
+  srcrowsize : cardinal;
+  source, destination : pointer;
 begin
   if rect.Right>0 then
   begin
@@ -518,39 +534,58 @@ begin
     fOptions.yMin:=fImage.Height-rect.Top;
     fOptions.yMax:=fImage.Height-(rect.Top+rect.Bottom);
   end;
-  if fOptions.timeoutMS<>DmtxUndefined then
-  begin
-    New(time);
-    time^.sec:=fOptions.timeoutMS div 1000;
-    time^.usec:=(fOptions.timeoutMS mod 1000) * 1000;
-  end
-  else
-    time:=nil;
   codecount:=0;
-  fDecode:=dmtxDecodeCreate(fImage, 1);
-  if SetDecodeOptions(fDecode,fImage,fOptions) then
+  //
+  Options:=fOptions;
+
+  rectwidth := fOptions.xMax - fOptions.xMin;
+  rectheight := fOptions.yMax - fOptions.yMin;
+  destination:=GetMemory(rectwidth*rectheight*SizeOf(TRGBTriple));
+  Image:=dmtxImageCreate(destination, rectwidth, rectheight, DmtxPack24bppRGB);
+  destrowsize:=Image.width*SizeOf(TRGBTriple);
+  srcrowsize:=fImage.width*SizeOf(TRGBTriple);
+  for row := 0 to Image.height - 1 do
   begin
-    while (fOptions.stopAfter=DmtxUndefined) or (codecount<fOptions.stopAfter) do
+    source:=pointer(cardinal(fImage.pxl)+(fOptions.xMin*Sizeof(TRGBTriple))+(row+fImage.height-options.yMax)*srcrowsize);
+    destination:=pointer(cardinal(Image.pxl)+row*destrowsize);
+    Move(source^,destination^,destrowsize);
+  end;
+  options.xMin:=DmtxUndefined;
+  options.xMax:=DmtxUndefined;
+  options.yMin:=DmtxUndefined;
+  options.yMax:=DmtxUndefined;
+
+  fDecode:=dmtxDecodeCreate(Image, 1);
+  if SetDecodeOptions(fDecode,Image,Options) then
+  begin
+    timeout:=nil;
+    if Options.timeoutMS>0 then
     begin
-      region:= dmtxRegionFindNext(fdecode,time);
+      timeout:=dmtxTimeNow;
+      dmtxTimeAdd(timeout,Options.timeoutMS);
+    end;
+    while (Options.stopAfter=DmtxUndefined) or (codecount<Options.stopAfter) do
+    begin
+      region:= dmtxRegionFindNext(fdecode,timeout);
       if not assigned(region) then
         break;
-      if fOptions.mosaic = DmtxTrue then
-        msg:= dmtxDecodeMosaicRegion(fDecode, region, fOptions.correctionsMax)
+      if Options.mosaic = DmtxTrue then
+        msg:= dmtxDecodeMosaicRegion(fDecode, region, Options.correctionsMax)
       else
-        msg:= dmtxDecodeMatrixRegion(fDecode, region, fOptions.correctionsMax);
+        msg:= dmtxDecodeMatrixRegion(fDecode, region, Options.correctionsMax);
       if assigned(msg) then
       begin
-        DecodeMessage(msg,region,codes,fOptions);
+        DecodeMessage(msg,region,codes,Options,Point(fOptions.xMin,fOptions.yMin));
         if (codes[codes.Count-1]<>'') then
           Inc(codecount);
         dmtxMessageDestroy(@msg);
       end;
     end;
+    dmtxTimeDestroy(@timeout);
   end;
+  FreeMemory(image.pxl);
+  dmtxImageDestroy(@image);
   dmtxDecodeDestroy(@fDecode);
-  if Assigned(time) then
-    Dispose(time);
 end;
 
 destructor TDataMatrixDecode.Destroy;

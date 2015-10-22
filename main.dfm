@@ -768,6 +768,13 @@ object frmMain: TfrmMain
         Height = 13
         Caption = 'Scan gap'
       end
+      object Label10: TLabel
+        Left = 8
+        Top = 141
+        Width = 62
+        Height = 13
+        Caption = 'Timeout (ms)'
+      end
       object ScrollBox1: TScrollBox
         Left = 192
         Top = 3
@@ -2905,25 +2912,6 @@ object frmMain: TfrmMain
           '')
         TabOrder = 3
       end
-      object edtScanGap: TEdit
-        Left = 67
-        Top = 34
-        Width = 81
-        Height = 21
-        TabOrder = 4
-        Text = '5'
-        OnChange = btnCreateBarcodeClick
-      end
-      object UpDown4: TUpDown
-        Left = 148
-        Top = 34
-        Width = 15
-        Height = 21
-        Associate = edtScanGap
-        Min = 1
-        Position = 5
-        TabOrder = 5
-      end
       object rgScanBarcodeType: TRadioGroup
         Left = 3
         Top = 61
@@ -2934,12 +2922,84 @@ object frmMain: TfrmMain
         Items.Strings = (
           'DataMatrix'
           'DataMosaic')
-        TabOrder = 6
+        TabOrder = 4
         OnClick = btnCreateBarcodeClick
+      end
+      object seScanTimeout: TSpinEdit
+        Left = 82
+        Top = 138
+        Width = 81
+        Height = 22
+        Increment = 100
+        MaxValue = 30000
+        MinValue = 0
+        TabOrder = 5
+        Value = 0
+      end
+      object seScangap: TSpinEdit
+        Left = 82
+        Top = 31
+        Width = 81
+        Height = 22
+        MaxValue = 30
+        MinValue = 1
+        TabOrder = 6
+        Value = 2
+      end
+    end
+    object tsTimeout: TTabSheet
+      Caption = 'Timeout'
+      ImageIndex = 2
+      object Label4: TLabel
+        Left = 16
+        Top = 48
+        Width = 62
+        Height = 13
+        Caption = 'Timeout (ms)'
+      end
+      object Label9: TLabel
+        Left = 24
+        Top = 136
+        Width = 77
+        Height = 13
+        Caption = 'Actual time (ms)'
+      end
+      object lblActualtime: TLabel
+        Left = 112
+        Top = 136
+        Width = 60
+        Height = 13
+        Caption = 'lblActualtime'
+      end
+      object seTimeout: TSpinEdit
+        Left = 104
+        Top = 40
+        Width = 121
+        Height = 22
+        Increment = 100
+        MaxValue = 30000
+        MinValue = 100
+        TabOrder = 0
+        Value = 1000
+      end
+      object Button1: TButton
+        Left = 150
+        Top = 80
+        Width = 75
+        Height = 25
+        Caption = 'Test'
+        TabOrder = 1
+        OnClick = Button1Click
       end
     end
   end
   object OpenPictureDialog: TOpenPictureDialog
     Left = 512
+  end
+  object tmrTimeout: TTimer
+    Enabled = False
+    Interval = 10
+    OnTimer = tmrTimeoutTimer
+    Left = 472
   end
 end

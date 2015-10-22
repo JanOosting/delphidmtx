@@ -4,7 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, DataMatrixBarcode, dmtx, ExtCtrls, StdCtrls, ComCtrls, ExtDlgs;
+  Dialogs, DataMatrixBarcode, dmtx, ExtCtrls, StdCtrls, ComCtrls, ExtDlgs,
+  Vcl.Samples.Spin;
 (*
 Demo program using DataMatrixBarcode unit
 
@@ -57,10 +58,18 @@ type
     OpenPictureDialog: TOpenPictureDialog;
     Label8: TLabel;
     shpSelector: TShape;
-    edtScanGap: TEdit;
     cbRotation: TComboBox;
-    UpDown4: TUpDown;
     rgScanBarcodeType: TRadioGroup;
+    tsTimeout: TTabSheet;
+    seTimeout: TSpinEdit;
+    Label4: TLabel;
+    Button1: TButton;
+    Label9: TLabel;
+    lblActualtime: TLabel;
+    tmrTimeout: TTimer;
+    Label10: TLabel;
+    seScanTimeout: TSpinEdit;
+    seScangap: TSpinEdit;
     procedure btnCopyClick(Sender: TObject);
     procedure btnCreateBarcodeClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -72,11 +81,15 @@ type
       Y: Integer);
     procedure imgScanMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure tmrTimeoutTimer(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
     CheckMainMovements:boolean;
     PrevX:integer;
     PrevY:integer;
+    timeout:pDmtxTime;
+    starttickcount : cardinal;
   public
     { Public declarations }
   end;
@@ -125,11 +138,13 @@ var
 begin
   memScanResults.Text:='<Scanning>';
   memScanResults.Update;
+  decOptions:=InitializeDatamatrixDecodeOptions;
+  decOPtions.timeoutMS:=seScanTimeout.Value;
+  decOptions.scanGap:=seScangap.Value;
   if shpSelector.visible and
      (abs(shpSelector.Width)>5) and
      (abs(shpSelector.Height)>5) then
   begin
-    decOptions:=InitializeDatamatrixDecodeOptions;
     if shpSelector.Width>0 then
     begin
       decoptions.xMin:=shpSelector.Left;
@@ -148,10 +163,17 @@ begin
       decOptions.yMin:=imgScan.Picture.Bitmap.Height-(shpSelector.Top+shpSelector.Height);
       decOptions.yMax:=imgScan.Picture.Bitmap.Height-shpSelector.Top;
     end;
-    DecodeDatamatrix(imgScan.Picture.Bitmap,memScanResults.Lines,decOptions);
-  end
-  else
-    DecodeDatamatrix(imgScan.Picture.Bitmap,memScanResults.Lines);
+  end;
+  DecodeDatamatrix(imgScan.Picture.Bitmap,memScanResults.Lines,decOptions);
+end;
+
+procedure TfrmMain.Button1Click(Sender: TObject);
+begin
+  timeout:=dmtxTimeNow;
+  dmtxTimeAdd(timeout,seTimeout.Value);
+  starttickcount:=GetTickCount();
+  tmrTimeout.Enabled:=true;
+  lblActualtime.Caption:='-';
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -187,6 +209,19 @@ procedure TfrmMain.imgScanMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   CheckMainMovements:=false;
+end;
+
+procedure TfrmMain.tmrTimeoutTimer(Sender: TObject);
+var
+ tst : integer;
+begin
+  tst:=dmtxTimeExceeded(timeout);
+  if tst<>0 then
+  begin
+    tmrTimeout.Enabled:=false;
+    lblActualtime.Caption:=IntToStr(GetTickCount()-starttickcount);
+    dmtxTimeDestroy(@timeout);
+  end;
 end;
 
 end.
