@@ -431,7 +431,7 @@ begin
   Inc(aRegion.boundMin.Y,adjust.Y);
   Inc(aRegion.boundMax.X,adjust.X);
   Inc(aRegion.boundMax.Y,adjust.Y);
-  codes.AddObject(PAnsiChar(msg.output),TObject(aRegion));
+  codes.AddObject(string(PAnsiChar(msg.output)),TObject(aRegion));
 end;
 
 
@@ -440,9 +440,7 @@ var
   decode:pDmtxDecode;
   image:PDmtxImage;
   region: pDmtxRegion;
-  p0,p1: DmtxPixelLoc;
   msg:pDmtxMessage;
-  PageScanCount: Integer;
   timeout: pDmtxTime;
 
 begin
@@ -453,7 +451,6 @@ begin
   try
     if SetDecodeOptions(decode,image,options) then
     begin
-      PageScanCount:=0;
       timeout:=nil;
       if options.timeoutMS>0 then
       begin
@@ -546,7 +543,7 @@ begin
   srcrowsize:=fImage.width*SizeOf(TRGBTriple);
   for row := 0 to Image.height - 1 do
   begin
-    source:=pointer(cardinal(fImage.pxl)+(fOptions.xMin*Sizeof(TRGBTriple))+(row+fImage.height-options.yMax)*srcrowsize);
+    source:=pointer(cardinal(fImage.pxl)+(Cardinal(fOptions.xMin)*Sizeof(TRGBTriple))+(row+cardinal(fImage.height-options.yMax))*srcrowsize);
     destination:=pointer(cardinal(Image.pxl)+row*destrowsize);
     Move(source^,destination^,destrowsize);
   end;
